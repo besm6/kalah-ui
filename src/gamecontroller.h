@@ -25,12 +25,16 @@ public:
 
     explicit GameController(QObject *parent = nullptr);
 
+    // Returns the current screen as an integer: Welcome(0), EnterName(1), SelectGender(2),
+    // SelectDifficulty(3), or Playing(4). QML screens read this property to know what to show.
     int appState() const { return static_cast<int>(m_appState); }
     QString userName() const;
     QVariantList pits() const;
     int currentPlayer() const;
     bool gameOver() const;
     int winner() const;
+    // Returns true while the AI timer is counting down before making its move.
+    // The UI uses this flag to disable player taps and show a thinking indicator.
     bool aiThinking() const { return m_aiThinking; }
 
 public slots:

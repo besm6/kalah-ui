@@ -1,5 +1,7 @@
 #include "gamecontroller.h"
 
+// Creates the game engine and wires up the AI delay timer.
+// The timer is configured to fire only once per activation; when it fires it calls doAIMove.
 GameController::GameController(QObject *parent)
     : QObject(parent), m_game(std::make_unique<KalahGame>()), m_aiTimer(new QTimer(this))
 {
@@ -7,6 +9,8 @@ GameController::GameController(QObject *parent)
     connect(m_aiTimer, &QTimer::timeout, this, &GameController::doAIMove);
 }
 
+// Changes the current screen and notifies QML via a signal.
+// Skips the signal if the state has not actually changed, avoiding unnecessary redraws.
 void GameController::setAppState(AppState s)
 {
     if (m_appState == s)
@@ -15,11 +19,15 @@ void GameController::setAppState(AppState s)
     emit appStateChanged();
 }
 
+// Converts the player's name from a C++ std::string to a Qt QString
+// so QML can display it directly.
 QString GameController::userName() const
 {
     return QString::fromStdString(m_game->getUserName());
 }
 
+// Packages all 14 pit counts into a flat list the QML board reads.
+// Indices 0–6 hold the USER's six pits and kalah; indices 7–13 hold JINN's.
 QVariantList GameController::pits() const
 {
     const Position &pos = m_game->getPosition();
@@ -36,17 +44,23 @@ QVariantList GameController::pits() const
     return list;
 }
 
+// Returns 0 when it is the human player's turn (bottom row)
+// and 1 when the AI plays (top row). QML uses this to highlight playable pits.
 int GameController::currentPlayer() const
 {
     // USER=1 maps to player 0 (bottom), JINN=0 maps to player 1 (top)
     return m_game->getPosition().currentPlayer == Player::USER ? 0 : 1;
 }
 
+// Delegates to the game engine to check whether either side has run out of stones.
+// Returns true when the game has ended and no more moves can be made.
 bool GameController::gameOver() const
 {
     return m_game->getPosition().isGameOver();
 }
 
+// Compares the two kalahs after the game ends.
+// Returns 0 if the USER wins, 1 if JINN wins, or -1 for a tie.
 int GameController::winner() const
 {
     const Position &pos = m_game->getPosition();
@@ -59,11 +73,15 @@ int GameController::winner() const
     return -1;    // tie
 }
 
+// Called when the player taps the welcome screen.
+// Advances the app to the name-entry screen.
 void GameController::proceedFromWelcome()
 {
     setAppState(EnterName);
 }
 
+// Saves the typed name into the game engine, notifies QML that the name changed,
+// and advances to the gender-selection screen.
 void GameController::submitName(const QString &name)
 {
     m_game->setUserName(name.toStdString());
@@ -71,12 +89,15 @@ void GameController::submitName(const QString &name)
     setAppState(SelectGender);
 }
 
+// Saves the gender choice into the game engine and moves to the difficulty-selection screen.
 void GameController::selectGender(int g)
 {
     m_game->setGender(static_cast<Gender>(g));
     setAppState(SelectDifficulty);
 }
 
+// Applies the chosen difficulty, resets the board to the starting position, and
+// switches to the playing screen. Emits signals so QML refreshes the board display.
 void GameController::selectLevel(int l)
 {
     m_game->setLevel(static_cast<Level>(l));
@@ -87,6 +108,9 @@ void GameController::selectLevel(int l)
     emit gameOverChanged();
 }
 
+// Called when the player taps a pit. Silently ignores taps while the AI is thinking,
+// after the game ends, or when it is not the player's turn. If the move is valid,
+// hands off to afterMove(); otherwise emits illegalMove so the UI can react.
 void GameController::sow(int pitIndex)
 {
     if (m_aiThinking || gameOver())
@@ -102,6 +126,8 @@ void GameController::sow(int pitIndex)
     afterMove(result);
 }
 
+// Cancels any pending AI move, resets the board to the starting position,
+// and stays on the Playing screen so a fresh game begins immediately.
 void GameController::newGame()
 {
     m_aiTimer->stop();
@@ -116,6 +142,9 @@ void GameController::newGame()
     setAppState(Playing);
 }
 
+// Runs after any valid move (human or AI). Refreshes the board display, checks if the
+// game just ended (sweeping remaining stones into kalahs if so), grants an extra turn
+// if earned, or emits currentPlayerChanged and schedules the AI's response.
 void GameController::afterMove(MoveResult result)
 {
     emit boardChanged();
@@ -140,6 +169,8 @@ void GameController::afterMove(MoveResult result)
     }
 }
 
+// Sets the "AI thinking" flag, notifies QML, and starts the 700 ms delay timer.
+// The brief pause makes the AI feel more natural rather than responding instantly.
 void GameController::scheduleAIMove()
 {
     m_aiThinking = true;
@@ -147,6 +178,9 @@ void GameController::scheduleAIMove()
     m_aiTimer->start(700);
 }
 
+// Fires when the AI timer expires. Asks the engine to choose and execute a move,
+// updates the board display, and either grants the AI an extra turn or hands
+// control back to the player by clearing the aiThinking flag.
 void GameController::doAIMove()
 {
     int pit = m_game->selectAIMove();

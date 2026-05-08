@@ -4,6 +4,9 @@
 #include <cmath>
 #include <ctime>
 
+// Sets up the game engine with a chosen difficulty and player name.
+// Seeds the random number generator with the current time so each game plays differently,
+// then loads the pool of AI commentary phrases and marks them all as unused.
 KalahGame::KalahGame(Level level, const std::string &userName)
     : level(level), userName(userName), gender(Gender::UNKNOWN), movesThisGame(0), lastJinnKalah(0),
       lastUserKalah(0), aiSilent(false)
@@ -13,6 +16,9 @@ KalahGame::KalahGame(Level level, const std::string &userName)
     phrasesUsed.resize(phrases.size(), false);
 }
 
+// Resets every regular pit to 6 stones and clears both kalahs to zero.
+// Also resets the move counter and marks every AI phrase as unseen,
+// so the board and commentary are both fresh at the start of a new game.
 void KalahGame::initializeBoard()
 {
     for (int player = 0; player < 2; ++player) {
@@ -28,6 +34,10 @@ void KalahGame::initializeBoard()
     std::fill(phrasesUsed.begin(), phrasesUsed.end(), false);
 }
 
+// Picks up all stones from the chosen pit and sows them one by one counter-clockwise.
+// Skips the opponent's kalah, awards an extra turn when the last stone lands in the
+// player's own kalah, and captures the opposite pit when the last stone lands on an
+// empty pit on the player's own side. Returns INVALID, EXTRA_TURN, or SWITCH_TURN.
 MoveResult KalahGame::makeMove(Player player, int pitIndex, bool animate)
 {
     if (pitIndex < 0 || pitIndex >= PITS_PER_SIDE) {
@@ -86,6 +96,9 @@ MoveResult KalahGame::makeMove(Player player, int pitIndex, bool animate)
     return MoveResult::SWITCH_TURN;
 }
 
+// Returns the numeric weights the AI uses to judge how good a board position is.
+// Higher difficulty levels use larger weights, making the AI value strategic factors
+// such as captures, extra turns, and stone distance more strongly.
 EvaluationWeights KalahGame::getWeights() const
 {
     EvaluationWeights weights;
@@ -108,6 +121,9 @@ EvaluationWeights KalahGame::getWeights() const
     return weights;
 }
 
+// Totals every stone (in pits and kalahs) for each player.
+// Returns a very large positive number if JINN leads, very large negative if USER leads,
+// or zero for a tie. Used to score terminal positions where the game is already decided.
 int KalahGame::diffScore(const Position &pos)
 {
     int jinnTotal = pos[Player::JINN].getKalah();
@@ -126,6 +142,9 @@ int KalahGame::diffScore(const Position &pos)
     return 0;
 }
 
+// Scores the board from the AI's point of view: a positive result means JINN is winning.
+// Combines stones in kalahs, stone mobility, distance to scoring, extra-turn
+// opportunities, and capture threats, each weighted by the current difficulty level.
 int KalahGame::evaluatePosition(const Position &pos)
 {
     if (pos.isGameOver()) {
@@ -183,6 +202,10 @@ int KalahGame::evaluatePosition(const Position &pos)
     return jinnScore - userScore;
 }
 
+// Recursively searches future moves to find the best outcome for JINN.
+// Alternates between maximizing (JINN's turn) and minimizing (USER's turn) at each level.
+// Alpha-beta pruning skips branches that cannot beat the best result found so far,
+// keeping the search fast enough for real-time play.
 int KalahGame::minimax(Position &pos, int depth, int alpha, int beta, bool maximizing)
 {
     if (depth == 0 || pos.isGameOver()) {
@@ -256,6 +279,9 @@ int KalahGame::minimax(Position &pos, int depth, int alpha, int beta, bool maxim
     }
 }
 
+// Evaluates every pit JINN can play using minimax and returns the index of the best one.
+// At PARTICIPANT level and above, occasionally picks a random top-scoring move to add
+// unpredictability. Returns -1 if no valid moves are available.
 int KalahGame::selectAIMove()
 {
     int depth = (level == Level::NOVICE || level == Level::CANDIDATE) ? 2 : 4;
@@ -312,6 +338,8 @@ int KalahGame::selectAIMove()
     return bestMoves[0].pit;
 }
 
+// Records the result of a completed game: increments the total games played
+// and the appropriate win counter for JINN, USER, or draws.
 void KalahGame::updateStats(Player winner)
 {
     stats.gamesPlayed++;
@@ -327,12 +355,16 @@ void KalahGame::updateStats(Player winner)
     }
 }
 
+// Returns a uniformly distributed random integer in [0, max).
+// Used when the AI selects random moves and when deciding whether to display a phrase.
 int KalahGame::randomInt(int max)
 {
     std::uniform_int_distribution<int> dist(0, max - 1);
     return dist(rng);
 }
 
+// Fills the phrases list with 30 short AI commentary strings such as "Well played!"
+// These are displayed occasionally during the game to give the AI some personality.
 void KalahGame::initializePhrases()
 {
     phrases = { "Thinking carefully...",
@@ -367,6 +399,9 @@ void KalahGame::initializePhrases()
                 "May the best player win!" };
 }
 
+// Picks a random AI commentary phrase for display after a move.
+// Returns an empty string 70% of the time so messages appear sparingly.
+// Cycles through all phrases before repeating any, then resets the used-flags.
 std::string KalahGame::getPhrase(int moveNumber)
 {
     if (aiSilent || phrases.empty()) {
