@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
+
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QObject>
+
 #include "gamecontroller.h"
 
 // Custom main — QCoreApplication must exist before any QObject is constructed.
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
@@ -14,19 +16,23 @@ int main(int argc, char** argv)
 
 // ── Helper ────────────────────────────────────────────────────────────────
 
-static void advanceTo(GameController& gc, GameController::AppState target)
+static void advanceTo(GameController &gc, GameController::AppState target)
 {
-    if (target >= GameController::EnterName)        gc.proceedFromWelcome();
-    if (target >= GameController::SelectGender)     gc.submitName("Tester");
-    if (target >= GameController::SelectDifficulty) gc.selectGender(0);
-    if (target >= GameController::Playing)          gc.selectLevel(1);
+    if (target >= GameController::EnterName)
+        gc.proceedFromWelcome();
+    if (target >= GameController::SelectGender)
+        gc.submitName("Tester");
+    if (target >= GameController::SelectDifficulty)
+        gc.selectGender(0);
+    if (target >= GameController::Playing)
+        gc.selectLevel(1);
 }
 
 // ── Fixture ───────────────────────────────────────────────────────────────
 
 class ControllerTest : public ::testing::Test {
 protected:
-    GameController* gc;
+    GameController *gc;
 
     void SetUp() override
     {
@@ -52,7 +58,7 @@ TEST(StateTest, ProceedFromWelcome_GoesToEnterName)
 {
     GameController gc;
     int sigCount = 0;
-    QObject::connect(&gc, &GameController::appStateChanged, [&]{ sigCount++; });
+    QObject::connect(&gc, &GameController::appStateChanged, [&] { sigCount++; });
     gc.proceedFromWelcome();
     EXPECT_EQ(gc.appState(), static_cast<int>(GameController::EnterName));
     EXPECT_EQ(sigCount, 1);
@@ -83,7 +89,7 @@ TEST(StateTest, SelectLevel_GoesToPlaying_EmitsBoardChanged)
     gc.submitName("Alice");
     gc.selectGender(0);
     int boardSignals = 0;
-    QObject::connect(&gc, &GameController::boardChanged, [&]{ boardSignals++; });
+    QObject::connect(&gc, &GameController::boardChanged, [&] { boardSignals++; });
     gc.selectLevel(1);
     EXPECT_EQ(gc.appState(), static_cast<int>(GameController::Playing));
     EXPECT_GE(boardSignals, 1);
@@ -130,7 +136,8 @@ TEST_F(ControllerTest, Pits_KalahsAreZero)
 TEST_F(ControllerTest, Pits_TotalIs72)
 {
     int sum = 0;
-    for (int i = 0; i < 14; ++i) sum += gc->pits()[i].toInt();
+    for (int i = 0; i < 14; ++i)
+        sum += gc->pits()[i].toInt();
     EXPECT_EQ(sum, 72);
 }
 
@@ -149,7 +156,7 @@ TEST_F(ControllerTest, Pits_UpdateAfterExtraTurnMove)
 TEST_F(ControllerTest, Signals_ValidMove_EmitsBoardChanged)
 {
     int count = 0;
-    QObject::connect(gc, &GameController::boardChanged, [&]{ count++; });
+    QObject::connect(gc, &GameController::boardChanged, [&] { count++; });
     gc->sow(0);
     EXPECT_GE(count, 1);
 }
@@ -158,7 +165,7 @@ TEST_F(ControllerTest, Signals_ValidMove_EmitsBoardChanged)
 TEST_F(ControllerTest, Signals_ExtraTurn_NoCurrentPlayerChanged)
 {
     int count = 0;
-    QObject::connect(gc, &GameController::currentPlayerChanged, [&]{ count++; });
+    QObject::connect(gc, &GameController::currentPlayerChanged, [&] { count++; });
     gc->sow(0);
     EXPECT_EQ(count, 0);
 }
@@ -168,7 +175,7 @@ TEST_F(ControllerTest, Signals_ExtraTurn_NoCurrentPlayerChanged)
 TEST_F(ControllerTest, Signals_SwitchTurn_CurrentPlayerChanged)
 {
     int count = 0;
-    QObject::connect(gc, &GameController::currentPlayerChanged, [&]{ count++; });
+    QObject::connect(gc, &GameController::currentPlayerChanged, [&] { count++; });
     gc->sow(1);
     EXPECT_EQ(count, 1);
     // newGame called by TearDown to stop the AI timer
@@ -179,8 +186,8 @@ TEST_F(ControllerTest, Signals_IllegalMove_EmitsIllegalMove)
 {
     gc->sow(0); // empties USER pit 0 (EXTRA_TURN)
     int illegal = 0, board = 0;
-    QObject::connect(gc, &GameController::illegalMove, [&](int){ illegal++; });
-    QObject::connect(gc, &GameController::boardChanged, [&]{ board++; });
+    QObject::connect(gc, &GameController::illegalMove, [&](int) { illegal++; });
+    QObject::connect(gc, &GameController::boardChanged, [&] { board++; });
     gc->sow(0); // pit 0 is now empty
     EXPECT_EQ(illegal, 1);
     EXPECT_EQ(board, 0);
@@ -190,7 +197,7 @@ TEST_F(ControllerTest, Signals_IllegalMove_CarriesPitIndex)
 {
     gc->sow(0); // empties pit 0
     int idx = -999;
-    QObject::connect(gc, &GameController::illegalMove, [&](int pitIndex){ idx = pitIndex; });
+    QObject::connect(gc, &GameController::illegalMove, [&](int pitIndex) { idx = pitIndex; });
     gc->sow(0);
     EXPECT_EQ(idx, 0);
 }
@@ -200,7 +207,7 @@ TEST_F(ControllerTest, Signals_AiThinking_BlocksSow)
 {
     gc->sow(1); // SWITCH_TURN → aiThinking=true
     int boardCount = 0;
-    QObject::connect(gc, &GameController::boardChanged, [&]{ boardCount++; });
+    QObject::connect(gc, &GameController::boardChanged, [&] { boardCount++; });
     gc->sow(2); // blocked by m_aiThinking
     EXPECT_EQ(boardCount, 0);
 }
@@ -240,11 +247,13 @@ TEST_F(ControllerTest, Timer_AiThinkingFalse_AfterTimerFires)
     guard.setSingleShot(true);
     guard.start(2000);
     QObject::connect(&guard, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(gc, &GameController::aiThinkingChanged, [&]{
-        if (!gc->aiThinking()) loop.quit();
+    QObject::connect(gc, &GameController::aiThinkingChanged, [&] {
+        if (!gc->aiThinking())
+            loop.quit();
     });
     gc->sow(1); // SWITCH_TURN → starts 700ms AI timer
-    if (gc->aiThinking()) loop.exec();
+    if (gc->aiThinking())
+        loop.exec();
     EXPECT_FALSE(gc->aiThinking());
 }
 

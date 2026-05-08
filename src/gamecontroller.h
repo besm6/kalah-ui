@@ -2,9 +2,10 @@
 #define GAMECONTROLLER_H
 
 #include <QObject>
-#include <QVariantList>
 #include <QTimer>
+#include <QVariantList>
 #include <memory>
+
 #include "kalah.h"
 
 class GameController : public QObject {
@@ -22,7 +23,7 @@ public:
     enum AppState { Welcome, EnterName, SelectGender, SelectDifficulty, Playing };
     Q_ENUM(AppState)
 
-    explicit GameController(QObject* parent = nullptr);
+    explicit GameController(QObject *parent = nullptr);
 
     int appState() const { return static_cast<int>(m_appState); }
     QString userName() const;
@@ -34,7 +35,7 @@ public:
 
 public slots:
     void proceedFromWelcome();
-    void submitName(const QString& name);
+    void submitName(const QString &name);
     void selectGender(int g);
     void selectLevel(int l);
     void sow(int pitIndex);
@@ -52,8 +53,8 @@ signals:
 private:
     std::unique_ptr<KalahGame> m_game;
     AppState m_appState = Welcome;
-    bool m_aiThinking = false;
-    QTimer* m_aiTimer;
+    bool m_aiThinking   = false;
+    QTimer *m_aiTimer;
 
     void setAppState(AppState s);
     void afterMove(MoveResult result);
