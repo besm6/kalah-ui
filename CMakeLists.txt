@@ -8,6 +8,8 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.2 COMPONENTS Core Quick QuickControls2 REQUIRED)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 qt_add_executable(mancala
     src/main.cpp
     src/mancalagame.cpp
