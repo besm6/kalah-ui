@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A top-level `Makefile` wraps CMake. Use it instead of invoking CMake directly:
 
-```bash
-make          # configure (RelWithDebInfo) + build
-make debug    # configure (Debug) + build
-make test     # build + run unit tests via ctest
-make install  # install to /usr/local
-make clean    # remove the build/ directory entirely
-```
+| Target | What it does |
+| ------ | ------------ |
+| `make` / `make all` | Create `build/` if needed, configure with `RelWithDebInfo`, then build everything |
+| `make debug` | Create `build/` and configure with `Debug` (configure only — run `make` afterward to build) |
+| `make test` | Build `unit_tests` and `controller_tests` targets, then run them via `ctest --output-on-failure` |
+| `make install` | Build then install to `/usr/local` |
+| `make clean` | Delete `build/` entirely |
 
 The binary is written to `build/bin/kalah`. Requires Qt 6.2+ and CMake 3.16+. CMake handles MOC, RCC, and QML compilation automatically via `qt_add_executable` / `qt_add_qml_module`.
 
@@ -58,7 +58,7 @@ Player mapping: `currentPlayer==0` → USER (bottom row), `currentPlayer==1` →
 
 ### Entry point (`src/main.cpp`)
 
-Instantiates `GameController`, injects it as the `game` context property, loads `qrc:/Kalah/qml/Main.qml`.
+Instantiates `GameController`, injects it as the `game` context property, loads `qrc:/qt/qml/Kalah/qml/Main.qml`.
 
 ### QML frontend
 

@@ -40,3 +40,6 @@ target_link_libraries(kalah PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
 )
+
+enable_testing()
+add_subdirectory(test)

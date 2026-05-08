@@ -14,7 +14,7 @@ all:    build
 	$(MAKE) -Cbuild $@
 
 test:   build
-	$(MAKE) -Cbuild unit_tests
+	$(MAKE) -Cbuild unit_tests controller_tests
 	ctest --test-dir build --output-on-failure
 
 install: build
