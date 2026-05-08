@@ -27,92 +27,57 @@ Kalah is a two-player Mancala variant. The board has:
 
 ---
 
-## Board Layout
-
-The ncurses display (70 × 15 character window) arranges the board as:
-
-```
-        DJINN
-     6   5   4   3   2   1
-   ( n) ( n) ( n) ( n) ( n) ( n)
-[nn]                          [nn]
-   ( n) ( n) ( n) ( n) ( n) ( n)
-     1   2   3   4   5   6
-        <player name>
-```
-
-- Djinn's pits are numbered 6–1 left-to-right (pit 6 is at index 0 internally, pit 1 at index 5).
-- The user's pits are numbered 1–6 left-to-right matching their 0-based indices.
-- Pits display as `( n)` (green highlight when selected); Kalahs display as `[nn]` in magenta.
-- Djinn's Kalah is at screen column 3; user's Kalah is at screen column 60.
-
----
-
-## Build
-
-```
-make          # compile to ./kalah  (g++ -std=c++17 -Wall -Wextra -O2 -g -lncurses)
-make run      # compile and run
-make clean    # remove .o and binary
-```
-
-Manual compilation:
-```bash
-g++ -std=c++17 -Wall -Wextra -O2 -c kalah.cpp -o kalah.o
-g++ -std=c++17 -Wall -Wextra -O2 -c ui.cpp -o ui.o
-g++ -std=c++17 -Wall -Wextra -O2 -c main.cpp -o main.o
-g++ -std=c++17 -Wall -Wextra -O2 -o kalah kalah.o ui.o main.o -lncurses
-```
-
-Requires: GCC 7+ or Clang 5+; ncurses development headers (`libncurses5-dev` on Debian/Ubuntu, `ncurses-devel` on Fedora, `brew install ncurses` on macOS).
-
----
-
 ## Session Flow
 
-```
-main()
-  └─ GameController::run()
-       ├─ ui.initialize()       — ncurses init, create 3 windows
-       ├─ ui.showWelcome()
-       ├─ ui.getUserName()      — stored in KalahGame::userName
-       ├─ ui.selectGender()     — stored as Gender enum (MALE/FEMALE/UNKNOWN)
-       ├─ ui.selectLevel()      — stored as Level enum
-       ├─ ui.initialize()       — reinitialize windows after setup screens
-       └─ loop: playGame()  →  confirm("Play another game?")
-            └─ showFinalStats()
-```
+The application is a Qt/QML GUI. `GameController : QObject` owns the `KalahGame` and drives both the setup screens and the game loop via signals and slots.
 
-### playGame()
+### App State Machine
 
 ```
-game.initializeBoard()
-draw board + stats
-
-loop while !position.isGameOver():
-    USER turn  → handleUserTurn()
-    JINN turn  → handleAITurn()
-    flip currentPlayer unless extraTurn
-
-finishGame()   ← collectRemaining(), display score, updateStats()
+Welcome(0) → EnterName(1) → SelectGender(2) → SelectDifficulty(3) → Playing(4)
 ```
 
-### handleUserTurn()
+Exposed as `Q_PROPERTY(int appState)` with the `AppState` enum.
 
-Loops on input until a valid move is made:
-- `'q'` / `'Q'` → confirm quit (sets `gameRunning = false`)
-- `'h'` / `'H'` → show help overlay
-- `'1'`–`'6'` → convert to 0-based index, validate non-empty pit, call `game.makeMove()`
-- Invalid input or empty pit → `displayError()` + `waitForKey()`
+### Setup Slot Chain
 
-### handleAITurn()
+```
+proceedFromWelcome()   → appState = EnterName
+submitName(QString)    → KalahGame::setUserName(); appState = SelectGender
+selectGender(int)      → KalahGame::setGender(); appState = SelectDifficulty
+selectLevel(int)       → KalahGame::setLevel(); initializeBoard(); appState = Playing
+                          emits boardChanged, currentPlayerChanged, gameOverChanged
+```
 
-1. Display "Djinn is thinking..." and sleep 500 ms.
-2. Call `game.selectAIMove()` to get pit index.
-3. Optionally fetch a phrase (30% chance) and display it.
-4. Call `game.makeMove(Player::JINN, move, true)`.
-5. Announce "Djinn plays pit N" (converting 0-based to display number: `PITS_PER_SIDE - move`).
-6. Sleep 800 ms.
+### User Move Path
+
+```
+sow(pitIndex)
+  └─ makeMove(USER, pit)
+       └─ afterMove(result)
+            ├─ emit boardChanged
+            ├─ isGameOver? → collectRemaining(); emit boardChanged, gameOverChanged
+            ├─ EXTRA_TURN  → return  (same player moves again)
+            └─ SWITCH_TURN → emit currentPlayerChanged
+                              JINN's turn? → scheduleAIMove()
+```
+
+### AI Move Path
+
+```
+scheduleAIMove()
+  └─ m_aiThinking = true; emit aiThinkingChanged
+     QTimer::start(700 ms)
+          └─ doAIMove()
+               ├─ selectAIMove() → pit index
+               ├─ makeMove(JINN, pit)
+               ├─ EXTRA_TURN  → QTimer::start(700 ms)  (JINN moves again)
+               └─ SWITCH_TURN → m_aiThinking = false; emit aiThinkingChanged, currentPlayerChanged
+```
+
+### New Game
+
+`newGame()` stops the AI timer, resets `m_aiThinking`, calls `initializeBoard()`, and emits `boardChanged`, `currentPlayerChanged`, `gameOverChanged`. It transitions directly to the `Playing` state without going through setup screens again.
 
 ---
 
@@ -162,7 +127,7 @@ struct Position {
 };
 ```
 
-`operator[]` is overloaded for both `Player` and `size_t`, so `pos[Player::JINN][3]` accesses Djinn's pit at index 3.
+`operator[]` is overloaded for `Player`, so `pos[Player::JINN][3]` accesses Djinn's pit at index 3.
 
 ### EvaluationWeights
 
@@ -211,17 +176,17 @@ MoveResult KalahGame::makeMove(Player player, int pitIndex, bool animate);
 1. Validate `pitIndex` ∈ [0,5] and `currentSide[pitIndex] > 0`; return `INVALID` otherwise.
 2. Lift all stones: set the chosen pit to 0, `stones = original count`.
 3. Walk pits one at a time, counter-clockwise:
-   - Advance `currentPit++`; if `currentPit >= 7` wrap to the next side (`currentP = opponent(currentP)`, `currentPit = 0`).
+   - Advance `currentPit++`; if `currentPit >= TOTAL_PITS` wrap to the next side (`currentP = opponent(currentP)`, `currentPit = 0`).
    - If `currentPit == KALAH_INDEX` and `currentP == opponent`: **skip** (do not drop, do not decrement `stones`).
    - Otherwise drop one stone: `position[currentP][currentPit]++; stones--`.
 4. When `stones == 0` (last stone placed):
    - **Extra turn:** if `currentPit == KALAH_INDEX && currentP == player` → return `EXTRA_TURN`.
    - **Capture:** if `currentP == player && currentPit < 6 && position[player][currentPit] == 1`:
-     - Compute `oppositePit = 5 - currentPit`.
+     - Compute `oppositePit = PITS_PER_SIDE - 1 - currentPit`.
      - If `position[opponent][oppositePit] > 0`: move captured + landing stone into `position[player][KALAH_INDEX]`; zero both pits.
 5. Set `position.currentPlayer = opponent`; increment `movesThisGame`; return `SWITCH_TURN`.
 
-The `animate` parameter is accepted but currently only delays are used in the controller layer; `makeMove` itself doesn't call ncurses.
+The `animate` parameter is accepted but unused inside `makeMove`; all move timing is handled by the 700 ms `QTimer` in `GameController`.
 
 ---
 
@@ -285,13 +250,15 @@ Returns `jinnScore - userScore` (positive = good for Jinn).
 **Non-terminal**, for each pit `i` (0–5):
 
 For Jinn's pit `i` with `jinnStones > 0`:
+
 - `jinnScore += jinnStones * mobilityWeight`
-- `jinnScore += (6 - distance) * distanceWeight`  where `distance = 6 - i`
+- `jinnScore += (KALAH_INDEX - distance) * distanceWeight`  where `distance = KALAH_INDEX - i`
 - If `jinnStones == distance`: `jinnScore += extraTurnBonus` (this pit would land exactly in Kalah)
-- If `jinnStones == 7 + i`: `userScore += captureValue` (Jinn's stones would wrap around and threaten user)
+- If `jinnStones == PITS_PER_SIDE + 1 + i`: `userScore += captureValue` (Jinn's stones wrap around and threaten user)
 
 For Jinn's pit `i` empty:
-- `oppositePit = 5 - i`; if `pos[USER][oppositePit] > 0`: `userScore += emptyPitValue` (user can capture)
+
+- `oppositePit = PITS_PER_SIDE - 1 - i`; if `pos[USER][oppositePit] > 0`: `userScore += emptyPitValue` (user can capture)
 
 Symmetrically for User's pit `i`.
 
@@ -312,44 +279,13 @@ Phrases include: "Thinking carefully...", "Interesting move!", "The tide is turn
 
 ---
 
-## UI (KalahUI)
-
-### Windows
-
-Three `WINDOW*` objects, stacked vertically, centered on the terminal:
-
-| Window      | Height | Width | Content |
-|-------------|--------|-------|---------|
-| `statsWin`  | 3      | 70    | Level and session score |
-| `boardWin`  | 15     | 70    | Board with pits and Kalahs |
-| `messageWin`| 5      | 70    | Messages, prompts, errors |
-
-### Color Pairs
-
-| Pair | Foreground | Background | Used for |
-|------|------------|------------|---------|
-| 1    | YELLOW     | BLACK      | Djinn labels and messages |
-| 2    | CYAN       | BLACK      | User name |
-| 3    | GREEN      | BLACK      | Highlights, extra turn, win messages |
-| 4    | RED        | BLACK      | Errors |
-| 5    | WHITE      | BLUE       | Title bar |
-| 6    | MAGENTA    | BLACK      | Kalah displays |
-
-### Input
-
-- `getUserMove()`: reads one character from `messageWin`. Returns 0–5 for `'1'`–`'6'`, -2 for `'q'`/'Q'`, -3 for `'h'`/'H'`, -1 for anything else.
-- `getUserInput()`: calls `mvwgetnstr` for free-text entry (name input).
-- `confirm()`: blocks on `'y'`/`'Y'`/`'n'`/`'N'`.
-
-### Animation
-
-`animateMove()` currently just calls `napms(300)`, redraws the board, then `napms(200)`. No per-stone animation.
-
----
-
 ## Multi-Game Sessions
 
-The session persists throughout `GameController::run()`. `KalahGame` (and its embedded `GameStats`) is constructed once and reused across games. `initializeBoard()` resets the board and `movesThisGame` counter but not the stats. At session end, `showFinalStats()` prints totals: games played, Djinn wins, user wins, draws.
+`KalahGame` is constructed once inside `GameController`'s constructor and reused for the entire application session. `initializeBoard()` resets the board and `movesThisGame` counter but not `GameStats`.
+
+`newGame()` in `GameController` stops the AI timer, resets `m_aiThinking`, calls `initializeBoard()`, and emits board/player/gameover signals. It transitions directly to `Playing` without repeating the setup screens.
+
+`updateStats()` exists in `KalahGame` but is not called anywhere in `GameController`, so all session statistics (`gamesPlayed`, `jinnWins`, `userWins`, `draws`) remain at zero throughout a session.
 
 ---
 
@@ -382,7 +318,5 @@ The following BESM-6 features were intentionally not ported:
 
 ## Known Quirks and Notes
 
-- The `draw` case in `finishGame()` calls `updateStats()` only when `winner != static_cast<Player>(-1)`, so draws do not increment `draws` in `GameStats`. The `draws` field is incremented only if the caller explicitly passes a draw sentinel — which never happens in the current code. Effectively, draws are untracked.
-- `ui.initialize()` is called twice in `GameController::run()`: once at startup (correct) and once after level selection (redundant but harmless — it reinitializes windows after the full-screen setup screens).
+- `updateStats()` is never called from `GameController`, so all fields in `GameStats` (`gamesPlayed`, `jinnWins`, `userWins`, `draws`) remain zero for the entire session. Stats tracking is not wired up in the current Qt version.
 - `selectAIMove()` saves and restores the game's `position` by value assignment (`Position savedPos = position; ... position = savedPos`). This is correct but means the AI search mutates and restores `KalahGame::position` repeatedly during the search tree traversal.
-- Djinn's display pit number is `PITS_PER_SIDE - move` (i.e., `6 - 0-based-index`), because Djinn's pits are drawn right-to-left: display pit 6 is internal index 0, display pit 1 is internal index 5.
