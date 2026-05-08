@@ -2,13 +2,13 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
-#include "mancalagame.h"
+#include "gamecontroller.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    MancalaGame game;
+    GameController game;
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("game", &game);

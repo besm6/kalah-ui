@@ -12,8 +12,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 qt_add_executable(mancala
     src/main.cpp
-    src/mancalagame.cpp
-    src/mancalagame.h
+    src/kalah.h
+    src/kalah.cpp
+    src/gamecontroller.h
+    src/gamecontroller.cpp
 )
 
 qt_add_qml_module(mancala
@@ -21,6 +23,11 @@ qt_add_qml_module(mancala
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/WelcomeScreen.qml
+        qml/NameScreen.qml
+        qml/GenderScreen.qml
+        qml/DifficultyScreen.qml
+        qml/GameScreen.qml
         qml/Pit.qml
         qml/Store.qml
 )
