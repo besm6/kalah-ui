@@ -4,35 +4,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Run
 
+A top-level `Makefile` wraps CMake. Use it instead of invoking CMake directly:
+
 ```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
-./mancala
+make          # configure (RelWithDebInfo) + build
+make debug    # configure (Debug) + build
+make test     # build + run unit tests via ctest
+make install  # install to /usr/local
+make clean    # remove the build/ directory entirely
 ```
 
-Requires Qt 6.2+ and CMake 3.16+. The CMake build handles MOC, RCC, and QML compilation automatically via `qt_add_executable` / `qt_add_qml_module`.
+The binary is written to `build/bin/kalah`. Requires Qt 6.2+ and CMake 3.16+. CMake handles MOC, RCC, and QML compilation automatically via `qt_add_executable` / `qt_add_qml_module`.
 
 ## Architecture
 
-The project is a C++/QML Qt application implementing Kalah-style mancala.
+The project is a C++/QML Qt application implementing Kalah-style mancala, structured in two clean layers:
 
-**C++ backend** ([src/mancalagame.h](src/mancalagame.h), [src/mancalagame.cpp](src/mancalagame.cpp)):
-- `MancalaGame : QObject` — all game logic; exposes state to QML via `Q_PROPERTY`
-- Board is a flat 14-element array: indices 0–5 are Player 0's pits, index 6 is Player 0's store, indices 7–12 are Player 1's pits, index 13 is Player 1's store
-- Public slots: `sow(int pitIndex)` (make a move), `reset()` (new game)
-- Signals: `boardChanged`, `currentPlayerChanged`, `gameOverChanged`, `illegalMove`, `moveCompleted`
+```text
+QML screens  ──events──▶  GameController : QObject  ──calls──▶  KalahGame
+             ◀─signals──  (src/gamecontroller.h/cpp)             (src/kalah.h/cpp)
+```
 
-**QML frontend** ([qml/Main.qml](qml/Main.qml), [qml/Pit.qml](qml/Pit.qml), [qml/Store.qml](qml/Store.qml)):
-- `Main.qml` — root window (1024×600); renders board and game status; calls `game.sow()` on tap
-- `Pit.qml` — circular pit component; highlights when it belongs to the current player
-- `Store.qml` — tall oval store/mancala component (display only)
+### Game engine (`src/kalah.h`, `src/kalah.cpp`)
 
-**Wiring** ([src/main.cpp](src/main.cpp)):
-- `MancalaGame` is instantiated in C++ and injected into the QML engine as the `game` context property
+Pure C++17, zero Qt dependencies. Key types:
 
-**Data flow:** QML tap → `game.sow(index)` → C++ updates `m_board` → emits `boardChanged` → QML re-reads `game.pits` and redraws.
+- `KalahGame` — owns board state and AI; main entry points:
+  - `initializeBoard()` — reset to 6 stones per pit
+  - `makeMove(Player, pitIndex)` → `MoveResult` (`INVALID` / `SWITCH_TURN` / `EXTRA_TURN`)
+  - `selectAIMove()` → pit index chosen by minimax with alpha-beta pruning
+  - `setLevel(Level)` — `NOVICE` / `CANDIDATE` / `PARTICIPANT` / `MASTER` (controls search depth and eval weights)
+  - `setUserName()`, `setGender()`
+- `Position` — board state: `sides[2]` (indexed by `Player::JINN=0`, `Player::USER=1`), each an `OneSide` of 7 slots (pits 0–5 + kalah at index 6)
+- `isGameOver()` — true when either side has no stones in regular pits
+- `collectRemaining()` — sweeps remaining pit stones into each player's kalah at end of game
+
+Board constants: `PITS_PER_SIDE=6`, `KALAH_INDEX=6`, `INITIAL_STONES=6`.
+
+### Qt bridge (`src/gamecontroller.h`, `src/gamecontroller.cpp`)
+
+`GameController : QObject` — the only Qt/QML-facing object. Owns a `KalahGame` and manages:
+
+- **App state machine** exposed as `Q_PROPERTY(int appState)` with enum `AppState`:
+  `Welcome(0)` → `EnterName(1)` → `SelectGender(2)` → `SelectDifficulty(3)` → `Playing(4)`
+- **Board state** as a flat 14-element `QVariantList pits`:
+  - `pits[0..5]` = USER pits, `pits[6]` = USER kalah
+  - `pits[7..12]` = JINN pits, `pits[13]` = JINN kalah
+- **AI turn timing**: after user moves, a 700 ms `QTimer` fires before the AI plays; `aiThinking` property reflects this
+- Public slots: `proceedFromWelcome()`, `submitName(QString)`, `selectGender(int)`, `selectLevel(int)`, `sow(int pitIndex)`, `newGame()`
+- Signals: `appStateChanged`, `boardChanged`, `currentPlayerChanged`, `gameOverChanged`, `aiThinkingChanged`, `illegalMove(int)`
+
+Player mapping: `currentPlayer==0` → USER (bottom row), `currentPlayer==1` → JINN (top row).
+
+### Entry point (`src/main.cpp`)
+
+Instantiates `GameController`, injects it as the `game` context property, loads `qrc:/Kalah/qml/Main.qml`.
+
+### QML frontend
+
+Window is 800×480 (landscape palmtop). `Main.qml` is a thin `StackView` shell; screens are pushed/replaced in response to `game.appStateChanged`:
+
+| File | Purpose |
+| ---- | ------- |
+| `qml/Main.qml` | `ApplicationWindow` + `StackView`; routes `appState` changes to screen components |
+| `qml/WelcomeScreen.qml` | Splash — title, subtitle, pulsing "tap to begin"; calls `game.proceedFromWelcome()` |
+| `qml/NameScreen.qml` | `TextField` for player name; calls `game.submitName()` |
+| `qml/GenderScreen.qml` | Three touch buttons (Male/Female/Prefer not to say); calls `game.selectGender()` |
+| `qml/DifficultyScreen.qml` | Four touch buttons (Юноша/Кандидат/Участник/Эфенди); calls `game.selectLevel()` |
+| `qml/GameScreen.qml` | Board + score bar + status label + New Game button |
+| `qml/Pit.qml` | Circular pit component; highlights when playable |
+| `qml/Store.qml` | Tall oval kalah/store component (display only) |
+
+**Data flow:** QML tap → `game.sow(index)` → C++ updates `KalahGame` → emits `boardChanged` → QML re-reads `game.pits` and redraws. AI move follows the same path after the timer fires.
+
+## Implementation Reference
+
+[src/Kalah.md](src/Kalah.md) contains full documentation of the game engine: class design, AI algorithm, evaluation weights, and rule details.
 
 ## Rules Implemented
 
-Standard Kalah rules: counter-clockwise sowing, capture of opposite pit when landing in an empty own pit, free turn when landing in own store, end-of-game sweep of remaining stones to the respective stores.
+Standard Kalah rules: counter-clockwise sowing, skip opponent's kalah, capture of opposite pit when last stone lands in an empty own pit, free turn when last stone lands in own kalah, end-of-game sweep of remaining stones into respective kalahs.

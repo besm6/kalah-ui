@@ -3,8 +3,8 @@ import QtQuick.Controls
 
 ApplicationWindow {
     id: root
-    width: 480
-    height: 800
+    width: 800
+    height: 480
     visible: true
     title: "Kalah"
 

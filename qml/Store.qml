@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// A player's store (mancala) — the larger pit on either side of the board.
+// A player's store (kalah) — the larger pit on either side of the board.
 Rectangle {
     id: store
 
