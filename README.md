@@ -62,6 +62,7 @@ Other make targets:
 ```bash
 make debug    # build with debug symbols
 make test     # build and run unit and integration tests
+make bundle   # create Kalah.app with bundled dylibs (macOS, requires dylibbundler)
 make clean    # remove build directory
 ```
 
