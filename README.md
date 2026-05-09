@@ -2,6 +2,8 @@
 
 Kalah is an ancient two-player strategy board game from the Mancala family. You play against a computer opponent (the Jinn) who uses a minimax algorithm to choose its moves.
 
+![screenshot](doc/kalah-gnome.png)
+
 ## How to Play
 
 The board has two rows of six pits and a large scoring pit (kalah) on each end. Each pit starts with six stones.
