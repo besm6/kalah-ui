@@ -18,7 +18,7 @@ The game ends when one player's six pits are all empty. The other player sweeps 
 
 When you launch the game you will be walked through four short screens:
 
-1. **Welcome** — tap anywhere to begin.
+1. **Welcome** — click anywhere to begin.
 2. **Name** — enter the name you want to play under.
 3. **Gender** — used for in-game commentary.
 4. **Difficulty** — choose how strong the Jinn plays:
@@ -30,23 +30,17 @@ When you launch the game you will be walked through four short screens:
 | Participant | Участник | Hard — for experienced players |
 | Master | Эфенди | Expert — maximum difficulty |
 
-After setup the game starts immediately. Tap **New Game** at any time to play again without repeating the setup.
+After setup the game starts immediately. Click **New Game** at any time to play again without repeating the setup.
 
 ## Building from Source
 
-Requires **Qt 6.2+** and **CMake 3.16+**. On Ubuntu/Debian, install the Qt development packages and QML runtime modules:
+Requires **gtkmm 4.0+** and **CMake 3.16+**. On Ubuntu/Debian:
 
 ```bash
 sudo apt install \
-  qt6-base-dev \
-  qt6-tools-dev \
-  qt6-declarative-dev \
-  qml6-module-qtquick \
-  qml6-module-qtquick-controls \
-  qml6-module-qtquick-layouts \
-  qml6-module-qtquick-templates \
-  qml6-module-qtquick-window \
-  qml6-module-qtqml-workerscript
+  libgtkmm-4.0-dev \
+  cmake \
+  pkg-config
 ```
 
 ```bash
@@ -60,6 +54,7 @@ Other make targets:
 
 ```bash
 make debug    # build with debug symbols
+make test     # build and run unit and integration tests
 make clean    # remove build directory
 ```
 

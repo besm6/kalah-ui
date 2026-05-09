@@ -14,20 +14,20 @@ A top-level `Makefile` wraps CMake. Use it instead of invoking CMake directly:
 | `make install` | Build then install to `/usr/local` |
 | `make clean` | Delete `build/` entirely |
 
-The binary is written to `build/bin/kalah`. Requires Qt 6.2+ and CMake 3.16+. CMake handles MOC, RCC, and QML compilation automatically via `qt_add_executable` / `qt_add_qml_module`.
+The binary is written to `build/bin/kalah`. Requires gtkmm-4.0, sigc++-3.0, glibmm-2.68, and CMake 3.16+.
 
 ## Architecture
 
-The project is a C++/QML Qt application implementing Kalah-style mancala, structured in two clean layers:
+The project is a C++17/gtkmm 4 application implementing Kalah-style mancala, structured in two clean layers:
 
 ```text
-QML screens  ──events──▶  GameController : QObject  ──calls──▶  KalahGame
-             ◀─signals──  (src/gamecontroller.h/cpp)             (src/kalah.h/cpp)
+gtkmm screens  ──events──▶  GameController  ──calls──▶  KalahGame
+               ◀─signals──  (src/gamecontroller.h/cpp)   (src/kalah.h/cpp)
 ```
 
 ### Game engine (`src/kalah.h`, `src/kalah.cpp`)
 
-Pure C++17, zero Qt dependencies. Key types:
+Pure C++17, zero framework dependencies. Key types:
 
 - `KalahGame` — owns board state and AI; main entry points:
   - `initializeBoard()` — reset to 6 stones per pit
@@ -41,41 +41,41 @@ Pure C++17, zero Qt dependencies. Key types:
 
 Board constants: `PITS_PER_SIDE=6`, `KALAH_INDEX=6`, `INITIAL_STONES=6`.
 
-### Qt bridge (`src/gamecontroller.h`, `src/gamecontroller.cpp`)
+### Controller bridge (`src/gamecontroller.h`, `src/gamecontroller.cpp`)
 
-`GameController : QObject` — the only Qt/QML-facing object. Owns a `KalahGame` and manages:
+`GameController` — the only framework-facing logic object. Owns a `KalahGame` and manages:
 
-- **App state machine** exposed as `Q_PROPERTY(int appState)` with enum `AppState`:
+- **App state machine** as enum `AppState`:
   `Welcome(0)` → `EnterName(1)` → `SelectGender(2)` → `SelectDifficulty(3)` → `Playing(4)`
-- **Board state** as a flat 14-element `QVariantList pits`:
+- **Board state** as a flat `std::array<int,14> pits()`:
   - `pits[0..5]` = USER pits, `pits[6]` = USER kalah
   - `pits[7..12]` = JINN pits, `pits[13]` = JINN kalah
-- **AI turn timing**: after user moves, a 700 ms `QTimer` fires before the AI plays; `aiThinking` property reflects this
-- Public slots: `proceedFromWelcome()`, `submitName(QString)`, `selectGender(int)`, `selectLevel(int)`, `sow(int pitIndex)`, `newGame()`
-- Signals: `appStateChanged`, `boardChanged`, `currentPlayerChanged`, `gameOverChanged`, `aiThinkingChanged`, `illegalMove(int)`
+- **AI turn timing**: after user moves, a 700 ms `Glib::signal_timeout()` fires before the AI plays; `aiThinking()` reflects this
+- Public methods: `proceedFromWelcome()`, `submitName(string)`, `selectGender(int)`, `selectLevel(int)`, `sow(int pitIndex)`, `newGame()`
+- sigc++ signals: `signal_app_state_changed`, `signal_board_changed`, `signal_current_player_changed`, `signal_game_over_changed`, `signal_ai_thinking_changed`, `signal_illegal_move`
 
-Player mapping: `currentPlayer==0` → USER (bottom row), `currentPlayer==1` → JINN (top row).
+Player mapping: `currentPlayer()==0` → USER (bottom row), `currentPlayer()==1` → JINN (top row).
 
 ### Entry point (`src/main.cpp`)
 
-Instantiates `GameController`, injects it as the `game` context property, loads `qrc:/qt/qml/Kalah/qml/Main.qml`.
+Creates `Gtk::Application` and uses `make_window_and_run<MainWindow>()` to construct and show `MainWindow`.
 
-### QML frontend
+### gtkmm frontend (`ui/`)
 
-Window is 800×480 (landscape palmtop). `Main.qml` is a thin `StackView` shell; screens are pushed/replaced in response to `game.appStateChanged`:
+Window is 800×480 (landscape, non-resizable). `MainWindow` holds a `Gtk::Stack` that switches between 5 screens in response to `signal_app_state_changed`. CSS is embedded as a string in `mainwindow.cpp`.
 
 | File | Purpose |
 | ---- | ------- |
-| `qml/Main.qml` | `ApplicationWindow` + `StackView`; routes `appState` changes to screen components |
-| `qml/WelcomeScreen.qml` | Splash — title, subtitle, pulsing "tap to begin"; calls `game.proceedFromWelcome()` |
-| `qml/NameScreen.qml` | `TextField` for player name; calls `game.submitName()` |
-| `qml/GenderScreen.qml` | Three touch buttons (Male/Female/Prefer not to say); calls `game.selectGender()` |
-| `qml/DifficultyScreen.qml` | Four touch buttons (Юноша/Кандидат/Участник/Эфенди); calls `game.selectLevel()` |
-| `qml/GameScreen.qml` | Board + score bar + status label + New Game button |
-| `qml/Pit.qml` | Circular pit component; highlights when playable |
-| `qml/Store.qml` | Tall oval kalah/store component (display only) |
+| `ui/mainwindow.h/cpp` | `Gtk::ApplicationWindow` + `Gtk::Stack`; owns `GameController` and all 5 screen objects; routes state changes |
+| `ui/welcomescreen.h/cpp` | Title + subtitle + "Click anywhere"; `Gtk::GestureClick` → `game.proceedFromWelcome()` |
+| `ui/namescreen.h/cpp` | `Gtk::Entry` (max 24) + Continue button; calls `game.submitName()` |
+| `ui/genderscreen.h/cpp` | Three `Gtk::Button` (Male/Female/Prefer not to say); calls `game.selectGender()` |
+| `ui/difficultyscreen.h/cpp` | Four `Gtk::Button` (Юноша/Кандидат/Участник/Эфенди) with subtitles; calls `game.selectLevel()` |
+| `ui/gamescreen.h/cpp` | Score bar + status label + board row + New Game button |
+| `ui/pitwidget.h/cpp` | `Gtk::DrawingArea` 90×90; Cairo circle; highlights when playable; emits `signal_tapped` |
+| `ui/storewidget.h/cpp` | `Gtk::DrawingArea` 80×220; Cairo pill shape; display-only kalah |
 
-**Data flow:** QML tap → `game.sow(index)` → C++ updates `KalahGame` → emits `boardChanged` → QML re-reads `game.pits` and redraws. AI move follows the same path after the timer fires.
+**Data flow:** gtkmm click → `game.sow(index)` → C++ updates `KalahGame` → emits `signal_board_changed` → `GameScreen::refresh_board()` reads `game.pits()` and redraws widgets. AI move follows the same path after the GLib timer fires.
 
 ## Implementation Reference
 
