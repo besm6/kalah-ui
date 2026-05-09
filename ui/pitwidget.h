@@ -16,6 +16,7 @@ private:
     bool m_is_user_pit;
     int  m_stones   = 0;
     bool m_playable = false;
+    bool m_pressed  = false;
 
     void on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int w, int h);
 };

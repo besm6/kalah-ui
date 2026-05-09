@@ -111,6 +111,14 @@ label.difficulty-sub {
     color: #907060;
     font-size: 10pt;
 }
+button.btn-gold:active {
+    background: #b88a30;
+    border-color: #d4a84b;
+}
+button.btn-newgame:active {
+    background: #b88a30;
+    border-color: #d4a84b;
+}
 )css";
 
 MainWindow::MainWindow()

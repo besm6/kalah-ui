@@ -16,7 +16,7 @@ WelcomeScreen::WelcomeScreen()
     m_subtitle.add_css_class("subtitle");
     m_subtitle.set_halign(Gtk::Align::CENTER);
 
-    m_tap_hint.set_text("Click anywhere to begin");
+    m_tap_hint.set_text("Tap anywhere to begin");
     m_tap_hint.add_css_class("tap-hint");
     m_tap_hint.set_halign(Gtk::Align::CENTER);
 

@@ -10,8 +10,15 @@ PitWidget::PitWidget(int board_index, bool is_user_pit)
     if (is_user_pit) {
         auto click = Gtk::GestureClick::create();
         click->signal_pressed().connect([this](int, double, double) {
-            if (m_playable && m_stones > 0)
+            if (m_playable && m_stones > 0) {
+                m_pressed = true;
+                queue_draw();
                 signal_tapped.emit(m_board_index);
+            }
+        });
+        click->signal_released().connect([this](int, double, double) {
+            m_pressed = false;
+            queue_draw();
         });
         add_controller(click);
     }
@@ -32,7 +39,9 @@ void PitWidget::on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int w, int h)
 
     // Fill circle
     cr->arc(cx, cy, r, 0, 2 * M_PI);
-    if (m_playable)
+    if (m_pressed)
+        cr->set_source_rgb(1.0, 0.878, 0.627);   // #ffe0a0
+    else if (m_playable)
         cr->set_source_rgb(0.847, 0.706, 0.541); // #d8b48a
     else
         cr->set_source_rgb(0.722, 0.580, 0.416); // #b8946a
