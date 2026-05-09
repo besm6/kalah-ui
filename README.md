@@ -34,18 +34,23 @@ After setup the game starts immediately. Click **New Game** at any time to play 
 
 ## Building from Source
 
-Requires **gtkmm 4.0+** and **CMake 3.16+**. On Ubuntu/Debian:
+### Ubuntu / Debian
 
 ```bash
-sudo apt install \
-  libgtkmm-4.0-dev \
-  cmake \
-  pkg-config
+sudo apt install libgtkmm-4.0-dev cmake pkg-config
 ```
+
+### macOS (Homebrew)
+
+```bash
+brew install gtkmm4 cmake pkgconf
+```
+
+### Build
 
 ```bash
 git clone <repo-url>
-cd kalah-qt
+cd kalah-ui
 make
 build/bin/kalah
 ```
