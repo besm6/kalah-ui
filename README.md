@@ -34,7 +34,20 @@ After setup the game starts immediately. Tap **New Game** at any time to play ag
 
 ## Building from Source
 
-Requires **Qt 6.2+** and **CMake 3.16+**. On Ubuntu, please install qt6-base-dev, qt6-tools-dev and qt6-declarative-dev.
+Requires **Qt 6.2+** and **CMake 3.16+**. On Ubuntu/Debian, install the Qt development packages and QML runtime modules:
+
+```bash
+sudo apt install \
+  qt6-base-dev \
+  qt6-tools-dev \
+  qt6-declarative-dev \
+  qml6-module-qtquick \
+  qml6-module-qtquick-controls \
+  qml6-module-qtquick-layouts \
+  qml6-module-qtquick-templates \
+  qml6-module-qtquick-window \
+  qml6-module-qtqml-workerscript
+```
 
 ```bash
 git clone <repo-url>

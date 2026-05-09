@@ -1,0 +1,17 @@
+# Kalah Qt Project Rules
+
+- Read `CLAUDE.md` before making non-trivial changes; it is the primary project guide.
+- Use the top-level `Makefile` instead of invoking CMake directly:
+  - `make` builds the app.
+  - `make test` builds and runs `unit_tests` and `controller_tests`.
+  - `make clean` removes `build/`.
+- Preserve the architecture boundary:
+  - `src/kalah.h` / `src/kalah.cpp` are pure C++17 game engine code with no Qt dependencies.
+  - `src/gamecontroller.h` / `src/gamecontroller.cpp` are the only Qt/QML bridge layer.
+  - QML should interact with the game only through the `game` context property.
+- Keep the QML resource path aligned:
+  - `src/main.cpp` loads `qrc:/qt/qml/Kalah/qml/Main.qml`.
+  - `qt_add_qml_module` in `CMakeLists.txt` must keep `URI Kalah` and `RESOURCE_PREFIX /qt/qml`.
+- The QML runtime needs Ubuntu/Debian packages listed in `README.md`, including `qml6-module-qtquick`, `qml6-module-qtquick-controls`, `qml6-module-qtquick-layouts`, `qml6-module-qtquick-templates`, `qml6-module-qtquick-window`, and `qml6-module-qtqml-workerscript`.
+- For engine behavior and AI details, consult `src/Kalah.md` before changing game rules or search logic.
+- Avoid unrelated refactors; keep changes scoped to the requested behavior.

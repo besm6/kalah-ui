@@ -26,6 +26,7 @@ qt_add_executable(kalah
 qt_add_qml_module(kalah
     URI Kalah
     VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/Main.qml
         qml/WelcomeScreen.qml
