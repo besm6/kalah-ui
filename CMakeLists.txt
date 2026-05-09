@@ -8,8 +8,10 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.2 COMPONENTS Core Quick QuickControls2 REQUIRED)
 
-qt_policy(SET QTP0001 NEW)
-qt_policy(SET QTP0004 NEW)
+if(Qt6_VERSION VERSION_GREATER_EQUAL "6.5")
+    qt_policy(SET QTP0001 NEW)
+    qt_policy(SET QTP0004 NEW)
+endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
