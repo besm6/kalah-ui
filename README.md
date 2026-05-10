@@ -54,7 +54,7 @@ brew install gtkmm4 cmake pkgconf
 git clone <repo-url>
 cd kalah-ui
 make
-build/bin/kalah
+build/kalah
 ```
 
 Other make targets:

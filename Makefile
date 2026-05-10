@@ -35,7 +35,7 @@ bundle: all
 	rm -rf Kalah.app
 	mkdir -p Kalah.app/Contents/MacOS Kalah.app/Contents/libs
 	cp macos/Info.plist Kalah.app/Contents/Info.plist
-	cp build/bin/kalah Kalah.app/Contents/MacOS/kalah
+	cp build/kalah Kalah.app/Contents/MacOS/kalah
 	dylibbundler -od -b \
 	    -x Kalah.app/Contents/MacOS/kalah \
 	    -d Kalah.app/Contents/libs/ \

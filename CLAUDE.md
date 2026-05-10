@@ -14,7 +14,7 @@ A top-level `Makefile` wraps CMake. Use it instead of invoking CMake directly:
 | `make install` | Build then install to `/usr/local` |
 | `make clean` | Delete `build/` entirely |
 
-The binary is written to `build/bin/kalah`. Requires gtkmm-4.0, sigc++-3.0, glibmm-2.68, and CMake 3.16+.
+The binary is written to `build/kalah`. Requires gtkmm-4.0, sigc++-3.0, glibmm-2.68, and CMake 3.16+.
 
 ## Architecture
 

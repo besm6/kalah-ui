@@ -5,18 +5,18 @@ static constexpr const char* kCss = R"css(
     font-family: Georgia, serif;
 }
 window, .screen {
-    background-color: #1a0f05;
+    background: #1a0f05;
     color: #c8b89a;
 }
 .screen-name, .screen-gender, .screen-difficulty {
-    background-color: #2a1e0e;
+    background: #2a1e0e;
 }
 .screen-game {
-    background-color: #3b2a14;
+    background: #3b2a14;
 }
 label.title {
     color: #d4a84b;
-    font-size: 48pt;
+    font-size: 24pt;
     font-weight: bold;
 }
 label.subtitle {
@@ -52,7 +52,7 @@ label.player-label {
     font-weight: bold;
 }
 entry.name-entry {
-    background-color: #1a0f05;
+    background: #1a0f05;
     color: #f0e6d0;
     border: 2px solid #5a4030;
     border-radius: 8px;
@@ -78,19 +78,19 @@ button.btn-gold:disabled {
     border-color: #5a4030;
 }
 button.btn-choice {
-    background-color: #1a0f05;
+    background: #1a0f05;
     color: #d4c8b0;
     border: 2px solid #5a4030;
     border-radius: 10px;
     font-size: 18pt;
     padding: 12px 16px;
-    min-height: 56px;
+    min-height: 36px;
 }
 button.btn-choice:hover {
     border-color: #d4a84b;
 }
 button.btn-choice:active {
-    background-color: #2a1e0e;
+    background: #2a1e0e;
     border-color: #d4a84b;
 }
 button.btn-newgame {
