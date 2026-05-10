@@ -124,8 +124,8 @@ button.btn-newgame:active {
 MainWindow::MainWindow()
 {
     set_title("Kalah");
-    set_default_size(800, 480);
-    set_resizable(false);
+    set_default_size(720, 400);
+    set_resizable(true);
 
     load_css();
 

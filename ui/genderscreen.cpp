@@ -9,8 +9,8 @@ GenderScreen::GenderScreen()
     set_halign(Gtk::Align::CENTER);
     set_valign(Gtk::Align::CENTER);
     set_expand(true);
-    set_margin_start(120);
-    set_margin_end(120);
+    set_margin_start(108);
+    set_margin_end(108);
     add_css_class("screen");
     add_css_class("screen-gender");
 

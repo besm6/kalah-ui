@@ -4,7 +4,7 @@
 PitWidget::PitWidget(int board_index, bool is_user_pit)
     : m_board_index(board_index), m_is_user_pit(is_user_pit)
 {
-    set_size_request(90, 90);
+    set_size_request(80, 80);
     set_draw_func(sigc::mem_fun(*this, &PitWidget::on_draw));
 
     if (is_user_pit) {
@@ -56,7 +56,7 @@ void PitWidget::on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int w, int h)
     cr->set_source_rgb(0.165, 0.102, 0.031); // #2a1a08
     cr->select_font_face("Sans", Cairo::ToyFontFace::Slant::NORMAL,
                           Cairo::ToyFontFace::Weight::BOLD);
-    cr->set_font_size(28.0);
+    cr->set_font_size(25.0);
     auto txt = std::to_string(m_stones);
     Cairo::TextExtents te;
     cr->get_text_extents(txt, te);

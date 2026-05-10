@@ -7,8 +7,8 @@ NameScreen::NameScreen()
     set_halign(Gtk::Align::CENTER);
     set_valign(Gtk::Align::CENTER);
     set_expand(true);
-    set_margin_start(80);
-    set_margin_end(80);
+    set_margin_start(72);
+    set_margin_end(72);
     add_css_class("screen");
     add_css_class("screen-name");
 
