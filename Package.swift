@@ -15,17 +15,20 @@ let package = Package(
             name: "KalahCore",
             dependencies: ["KalahEngine"],
             path: "ui",
-            exclude: ["KalahApp.swift"]
+            exclude: ["KalahApp.swift"],
+            swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
         .executableTarget(
             name: "Kalah",
             dependencies: ["KalahCore"],
-            path: "app"
+            path: "app",
+            swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
         .testTarget(
             name: "KalahTests",
             dependencies: ["KalahCore"],
-            path: "tests"
+            path: "tests",
+            swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
     ],
     cxxLanguageStandard: .cxx17

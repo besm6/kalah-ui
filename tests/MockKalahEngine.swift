@@ -1,6 +1,6 @@
 @testable import KalahCore
 
-final class MockKalahEngine: KalahEngineProtocol {
+final class MockKalahEngine: KalahProtocol {
 
     // MARK: - Recorded calls
     var proceedFromWelcomeCallCount = 0
@@ -27,7 +27,7 @@ final class MockKalahEngine: KalahEngineProtocol {
     var stubbedWinner = -1
     var stubbedUserName = "TestPlayer"
 
-    // MARK: - KalahEngineProtocol
+    // MARK: - KalahProtocol
 
     func destroy() {}
 

@@ -1,4 +1,4 @@
-protocol KalahEngineProtocol: AnyObject {
+protocol KalahProtocol: AnyObject {
     func destroy()
     func proceedFromWelcome()
     func submitName(_ name: String)

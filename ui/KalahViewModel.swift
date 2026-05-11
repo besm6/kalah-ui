@@ -17,16 +17,16 @@ public final class KalahViewModel {
     public private(set) var userName: String = "Player"
 
     @ObservationIgnored
-    private var engine: any KalahEngineProtocol
+    private var engine: any KalahProtocol
     @ObservationIgnored
     private let aiDelay: Duration
 
     public init() {
-        self.engine = KalahEngineBridge()
+        self.engine = KalahBridge()
         self.aiDelay = .milliseconds(700)
     }
 
-    init(engine: some KalahEngineProtocol, aiDelay: Duration = .milliseconds(700)) {
+    init(engine: some KalahProtocol, aiDelay: Duration = .milliseconds(700)) {
         self.engine = engine
         self.aiDelay = aiDelay
     }

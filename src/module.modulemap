@@ -1,4 +1,5 @@
 module KalahEngine {
-    header "KalahBridge.h"
+    header "KalahSwift.h"
+    requires cplusplus
     export *
 }
