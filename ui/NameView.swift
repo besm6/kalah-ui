@@ -3,6 +3,7 @@ import SwiftUI
 struct NameView: View {
     @Environment(KalahViewModel.self) private var vm
     @State private var name: String = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(spacing: 24) {
@@ -13,6 +14,8 @@ struct NameView: View {
                 .font(.custom("Georgia", size: 20))
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 320)
+                .focused($focused)
+                .onAppear { focused = true }
                 .onChange(of: name) { _, new in
                     if new.count > 24 { name = String(new.prefix(24)) }
                 }
