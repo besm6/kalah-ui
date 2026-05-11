@@ -31,6 +31,7 @@ run:
 test: cmake-build
 	$(MAKE) -Ccmake-build unit_tests
 	ctest --test-dir cmake-build --output-on-failure
+	swift test
 
 bundle: release
 	rm -rf $(APP)

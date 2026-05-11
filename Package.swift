@@ -11,10 +11,21 @@ let package = Package(
             exclude: ["Kalah.md"],
             publicHeadersPath: "."
         ),
+        .target(
+            name: "KalahCore",
+            dependencies: ["KalahEngine"],
+            path: "ui",
+            exclude: ["KalahApp.swift"]
+        ),
         .executableTarget(
             name: "Kalah",
-            dependencies: ["KalahEngine"],
-            path: "ui"
+            dependencies: ["KalahCore"],
+            path: "app"
+        ),
+        .testTarget(
+            name: "KalahTests",
+            dependencies: ["KalahCore"],
+            path: "tests"
         ),
     ],
     cxxLanguageStandard: .cxx17

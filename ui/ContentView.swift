@@ -1,9 +1,11 @@
 import SwiftUI
 
-struct ContentView: View {
+public struct ContentView: View {
     @Environment(KalahViewModel.self) private var vm
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         ZStack {
             Color.bgWindow.ignoresSafeArea()
             Group {

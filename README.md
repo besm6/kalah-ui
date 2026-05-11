@@ -60,6 +60,7 @@ make release   # optimised build (.build/release/Kalah)
 make run       # build and launch the app
 make install   # install to /usr/local/bin
 make test      # build and run C++ engine unit tests (requires CMake)
+swift test     # build and run Swift UI unit tests
 make clean     # remove .build/ and cmake-build/
 ```
 
@@ -67,8 +68,10 @@ make clean     # remove .build/ and cmake-build/
 
 ```text
 src/         C++17 game engine (kalah.h, kalah.cpp) and C bridge for Swift
-ui/          SwiftUI front-end (views, view model)
+ui/          SwiftUI front-end (KalahCore library: views, view model, engine protocol/bridge)
+app/         App entry point (KalahApp.swift with @main)
 test/        C++ unit tests for the game engine
+tests/       Swift unit tests for the view model (KalahTests)
 ```
 
 ## Implementation Details

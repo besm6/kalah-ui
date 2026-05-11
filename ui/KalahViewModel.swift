@@ -1,68 +1,75 @@
 import Foundation
 import Observation
-import KalahEngine
 
 @MainActor
 @Observable
-final class KalahViewModel {
-    enum AppState: Int {
+public final class KalahViewModel {
+    public enum AppState: Int {
         case welcome, enterName, selectGender, selectDifficulty, playing
     }
 
-    private(set) var appState: AppState = .welcome
-    private(set) var pits: [Int] = Array(repeating: 0, count: 14)
-    private(set) var currentPlayer: Int = 0   // 0 = USER, 1 = JINN
-    private(set) var isGameOver: Bool = false
-    private(set) var winner: Int = -1         // 0=user 1=jinn -1=tie
-    private(set) var isAIThinking: Bool = false
-    private(set) var userName: String = "Player"
+    public private(set) var appState: AppState = .welcome
+    public private(set) var pits: [Int] = Array(repeating: 0, count: 14)
+    public private(set) var currentPlayer: Int = 0   // 0 = USER, 1 = JINN
+    public private(set) var isGameOver: Bool = false
+    public private(set) var winner: Int = -1         // 0=user 1=jinn -1=tie
+    public private(set) var isAIThinking: Bool = false
+    public private(set) var userName: String = "Player"
 
     @ObservationIgnored
-    private var handle: UnsafeMutableRawPointer
+    private var engine: any KalahEngineProtocol
+    @ObservationIgnored
+    private let aiDelay: Duration
 
-    init() {
-        handle = kalah_create()!
+    public init() {
+        self.engine = KalahEngineBridge()
+        self.aiDelay = .milliseconds(700)
+    }
+
+    init(engine: some KalahEngineProtocol, aiDelay: Duration = .milliseconds(700)) {
+        self.engine = engine
+        self.aiDelay = aiDelay
     }
 
     deinit {
-        kalah_destroy(handle)
+        engine.destroy()
     }
 
     // MARK: - Navigation actions
 
-    func proceedFromWelcome() {
-        kalah_proceed_from_welcome(handle)
+    public func proceedFromWelcome() {
+        engine.proceedFromWelcome()
         appState = .enterName
     }
 
-    func submitName(_ name: String) {
-        name.withCString { kalah_submit_name(handle, $0) }
+    public func submitName(_ name: String) {
+        engine.submitName(name)
         userName = name.isEmpty ? "Player" : name
         appState = .selectGender
     }
 
-    func selectGender(_ g: Int) {
-        kalah_select_gender(handle, Int32(g))
+    public func selectGender(_ g: Int) {
+        engine.selectGender(g)
         appState = .selectDifficulty
     }
 
-    func selectLevel(_ l: Int) {
-        kalah_select_level(handle, Int32(l))
+    public func selectLevel(_ l: Int) {
+        engine.selectLevel(l)
         appState = .playing
         syncBoard()
     }
 
     // MARK: - Game actions
 
-    func sow(_ pit: Int) {
+    public func sow(_ pit: Int) {
         guard !isAIThinking, !isGameOver, currentPlayer == 0 else { return }
-        let result = Int(kalah_sow(handle, Int32(pit)))
+        let result = engine.sow(pit: pit)
         guard result != 0 else { return }
         handleMoveResult(result)
     }
 
-    func newGame() {
-        kalah_new_game(handle)
+    public func newGame() {
+        engine.newGame()
         isGameOver = false
         winner = -1
         isAIThinking = false
@@ -72,21 +79,17 @@ final class KalahViewModel {
     // MARK: - Internal
 
     private func syncBoard() {
-        var buf = [Int32](repeating: 0, count: 14)
-        buf.withUnsafeMutableBufferPointer { ptr in
-            kalah_get_pits(handle, ptr.baseAddress)
-        }
-        pits = buf.map { Int($0) }
-        currentPlayer = Int(kalah_current_player(handle))
-        userName = String(cString: kalah_get_user_name(handle))
+        pits = engine.getPits()
+        currentPlayer = engine.currentPlayer()
+        userName = engine.getUserName()
     }
 
     private func handleMoveResult(_ result: Int) {
-        if kalah_is_game_over(handle) != 0 {
-            kalah_collect_remaining(handle)
+        if engine.isGameOver() {
+            engine.collectRemaining()
             syncBoard()
             isGameOver = true
-            winner = Int(kalah_winner(handle))
+            winner = engine.winner()
             return
         }
         syncBoard()
@@ -104,19 +107,19 @@ final class KalahViewModel {
     }
 
     private func performAITurn() async {
-        try? await Task.sleep(nanoseconds: 700_000_000)
-        let pit = kalah_select_ai_move(handle)
+        try? await Task.sleep(for: aiDelay)
+        let pit = engine.selectAIMove()
         guard pit >= 0 else {
             isAIThinking = false
             return
         }
-        let result = Int(kalah_do_ai_move(handle, pit))
-        if kalah_is_game_over(handle) != 0 {
-            kalah_collect_remaining(handle)
+        let result = engine.doAIMove(pit: pit)
+        if engine.isGameOver() {
+            engine.collectRemaining()
             syncBoard()
             isAIThinking = false
             isGameOver = true
-            winner = Int(kalah_winner(handle))
+            winner = engine.winner()
             return
         }
         syncBoard()

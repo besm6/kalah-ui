@@ -12,6 +12,7 @@ The project is built with Swift Package Manager. A `Makefile` wraps the common c
 | `make release` | `swift build -c release` |
 | `make run` | `swift run Kalah` — build and launch the app |
 | `make test` | Build and run C++ engine unit tests via CMake/ctest |
+| `swift test` | Build and run Swift UI unit tests (KalahTests) |
 | `make install` | Copy release binary to `/usr/local/bin/Kalah` |
 | `make clean` | Delete `.build/` and `cmake-build/` |
 
@@ -22,9 +23,11 @@ The debug binary is written to `.build/debug/Kalah`. Requires macOS 14+ and Swif
 The project has two layers: a pure C++17 game engine and a SwiftUI front-end that calls it through a plain-C bridge.
 
 ```text
-SwiftUI views  ──calls──▶  KalahViewModel  ──C API──▶  KalahBridge  ──calls──▶  KalahGame
-               ◀─@Observable─  (ui/)          (src/)      (src/)        (src/kalah.h/cpp)
+SwiftUI views  ──calls──▶  KalahViewModel  ──protocol──▶  KalahEngineBridge  ──C API──▶  KalahGame
+               ◀─@Observable─  (ui/)            (ui/)           (ui/)            (src/)   (src/kalah.h/cpp)
 ```
+
+SPM targets: `KalahEngine` (C/C++, `src/`) → `KalahCore` (Swift library, `ui/`) → `Kalah` (executable, `app/`). Tests live in `tests/` as the `KalahTests` target.
 
 ### Game engine (`src/kalah.h`, `src/kalah.cpp`)
 
@@ -53,14 +56,16 @@ A plain-C API (`extern "C"`, `void *` handle) that wraps `KalahGame` so Swift ca
 - **Move actions**: `kalah_sow(pit)` (USER), `kalah_select_ai_move()`, `kalah_do_ai_move(pit)` — all return `int` (0=INVALID, 1=SWITCH_TURN, 2=EXTRA_TURN)
 - `src/module.modulemap` exposes only `KalahBridge.h` to Swift; `kalah.h` (C++ types) is hidden
 
-### SwiftUI front-end (`ui/`)
+### SwiftUI front-end (`app/`, `ui/`)
 
-Window is ~720×400. `KalahViewModel` is a `@MainActor @Observable` class that owns the bridge handle and drives all state. Views read from it and call its methods.
+Window is ~720×400. `KalahViewModel` is a `@MainActor @Observable` class that drives all state. Views read from it and call its methods. All Swift source is in the `KalahCore` library target (`ui/`) except the entry point.
 
 | File | Purpose |
 | ---- | ------- |
-| `ui/KalahApp.swift` | `@main` SwiftUI `App`; creates `KalahViewModel` and injects it as an environment object |
-| `ui/KalahViewModel.swift` | `@Observable` state; calls C bridge; schedules AI moves with `Task.sleep(700 ms)` |
+| `app/KalahApp.swift` | `@main` SwiftUI `App`; creates `KalahViewModel` and injects it as an environment object |
+| `ui/KalahViewModel.swift` | `@Observable` state; delegates to `KalahEngineProtocol`; schedules AI moves with `Task.sleep(700 ms)` |
+| `ui/KalahEngineProtocol.swift` | Protocol abstracting all C bridge calls; enables mock injection for tests |
+| `ui/KalahEngineBridge.swift` | Concrete `KalahEngineProtocol` implementation; sole owner of `kalah_*` C calls |
 | `ui/ContentView.swift` | Root view; switches on `vm.appState` with slide transition |
 | `ui/WelcomeView.swift` | Title + subtitle + "Tap anywhere to begin"; full-screen tap gesture |
 | `ui/NameView.swift` | `TextField` (max 24 chars) + Continue button |
@@ -71,9 +76,18 @@ Window is ~720×400. `KalahViewModel` is a `@MainActor @Observable` class that o
 | `ui/StoreView.swift` | 80×200 pill; display-only kalah score |
 | `ui/Styles.swift` | `Color(hex:)` extension, `GoldButtonStyle`, `ChoiceButtonStyle`, shared colour constants |
 
-**Data flow:** SwiftUI tap → `vm.sow(index)` → `kalah_sow()` updates `KalahGame` → `syncBoard()` reads `kalah_get_pits()` → `@Observable` triggers view refresh. After a SWITCH_TURN result, `KalahViewModel` waits 700 ms then calls `kalah_select_ai_move()` / `kalah_do_ai_move()` and syncs again.
+**Data flow:** SwiftUI tap → `vm.sow(index)` → `engine.sow(pit:)` → `KalahEngineBridge` → `kalah_sow()` updates `KalahGame` → `syncBoard()` reads `engine.getPits()` → `@Observable` triggers view refresh. After a SWITCH_TURN result, `KalahViewModel` waits 700 ms then calls `engine.selectAIMove()` / `engine.doAIMove(pit:)` and syncs again.
 
 Player mapping: `currentPlayer == 0` → USER (bottom row), `currentPlayer == 1` → JINN (top row).
+
+### Swift unit tests (`tests/`)
+
+`KalahTests` target exercises `KalahViewModel` in isolation using a `MockKalahEngine` that implements `KalahEngineProtocol`. The mock records call counts and lets each test configure return values.
+
+- `tests/KalahViewModelTests.swift` — 15 test cases covering state machine transitions, board sync, extra-turn logic, AI scheduling, game-over handling, and new-game reset
+- `tests/MockKalahEngine.swift` — configurable mock with per-call result queues
+
+Run with `swift test`. The `aiDelay` parameter on `KalahViewModel.init(engine:aiDelay:)` is set to `.zero` in tests so async AI-turn cases complete in milliseconds.
 
 ## Implementation Reference
 
