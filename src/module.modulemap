@@ -1,0 +1,4 @@
+module KalahEngine {
+    header "KalahBridge.h"
+    export *
+}

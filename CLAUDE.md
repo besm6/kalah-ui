@@ -4,25 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Run
 
-A top-level `Makefile` wraps CMake. Use it instead of invoking CMake directly:
+The project is built with Swift Package Manager. A `Makefile` wraps the common commands:
 
 | Target | What it does |
 | ------ | ------------ |
-| `make` / `make all` | Create `build/` if needed, configure with `RelWithDebInfo`, then build everything |
-| `make debug` | Create `build/` and configure with `Debug` (configure only — run `make` afterward to build) |
-| `make test` | Build `unit_tests` and `controller_tests` targets, then run them via `ctest --output-on-failure` |
-| `make install` | Build then install to `/usr/local` |
-| `make clean` | Delete `build/` entirely |
+| `make` / `make all` | `swift build` (debug) |
+| `make release` | `swift build -c release` |
+| `make run` | `swift run Kalah` — build and launch the app |
+| `make test` | Build and run C++ engine unit tests via CMake/ctest |
+| `make install` | Copy release binary to `/usr/local/bin/Kalah` |
+| `make clean` | Delete `.build/` and `cmake-build/` |
 
-The binary is written to `build/kalah`. Requires gtkmm-4.0, sigc++-3.0, glibmm-2.68, and CMake 3.16+.
+The debug binary is written to `.build/debug/Kalah`. Requires macOS 14+ and Swift 5.10+.
 
 ## Architecture
 
-The project is a C++17/gtkmm 4 application implementing Kalah-style mancala, structured in two clean layers:
+The project has two layers: a pure C++17 game engine and a SwiftUI front-end that calls it through a plain-C bridge.
 
 ```text
-gtkmm screens  ──events──▶  GameController  ──calls──▶  KalahGame
-               ◀─signals──  (src/gamecontroller.h/cpp)   (src/kalah.h/cpp)
+SwiftUI views  ──calls──▶  KalahViewModel  ──C API──▶  KalahBridge  ──calls──▶  KalahGame
+               ◀─@Observable─  (ui/)          (src/)      (src/)        (src/kalah.h/cpp)
 ```
 
 ### Game engine (`src/kalah.h`, `src/kalah.cpp`)
@@ -41,41 +42,38 @@ Pure C++17, zero framework dependencies. Key types:
 
 Board constants: `PITS_PER_SIDE=6`, `KALAH_INDEX=6`, `INITIAL_STONES=6`.
 
-### Controller bridge (`src/gamecontroller.h`, `src/gamecontroller.cpp`)
+### C bridge (`src/KalahBridge.h`, `src/KalahBridge.cpp`)
 
-`GameController` — the only framework-facing logic object. Owns a `KalahGame` and manages:
+A plain-C API (`extern "C"`, `void *` handle) that wraps `KalahGame` so Swift can call it without C++ interop mode. Also owns the app state machine.
 
-- **App state machine** as enum `AppState`:
-  `Welcome(0)` → `EnterName(1)` → `SelectGender(2)` → `SelectDifficulty(3)` → `Playing(4)`
-- **Board state** as a flat `std::array<int,14> pits()`:
-  - `pits[0..5]` = USER pits, `pits[6]` = USER kalah
-  - `pits[7..12]` = JINN pits, `pits[13]` = JINN kalah
-- **AI turn timing**: after user moves, a 700 ms `Glib::signal_timeout()` fires before the AI plays; `aiThinking()` reflects this
-- Public methods: `proceedFromWelcome()`, `submitName(string)`, `selectGender(int)`, `selectLevel(int)`, `sow(int pitIndex)`, `newGame()`
-- sigc++ signals: `signal_app_state_changed`, `signal_board_changed`, `signal_current_player_changed`, `signal_game_over_changed`, `signal_ai_thinking_changed`, `signal_illegal_move`
+- Handle lifecycle: `kalah_create()` / `kalah_destroy()`
+- **App state machine** (int 0–4): `Welcome` → `EnterName` → `SelectGender` → `SelectDifficulty` → `Playing`
+  - `kalah_proceed_from_welcome()`, `kalah_submit_name()`, `kalah_select_gender()`, `kalah_select_level()`
+- **Board access**: `kalah_get_pits(h, int[14])` — flat array: `[0..5]` USER pits, `[6]` USER kalah, `[7..12]` JINN pits, `[13]` JINN kalah
+- **Move actions**: `kalah_sow(pit)` (USER), `kalah_select_ai_move()`, `kalah_do_ai_move(pit)` — all return `int` (0=INVALID, 1=SWITCH_TURN, 2=EXTRA_TURN)
+- `src/module.modulemap` exposes only `KalahBridge.h` to Swift; `kalah.h` (C++ types) is hidden
 
-Player mapping: `currentPlayer()==0` → USER (bottom row), `currentPlayer()==1` → JINN (top row).
+### SwiftUI front-end (`ui/`)
 
-### Entry point (`src/main.cpp`)
-
-Creates `Gtk::Application` and uses `make_window_and_run<MainWindow>()` to construct and show `MainWindow`.
-
-### gtkmm frontend (`ui/`)
-
-Window is 800×480 (landscape, non-resizable). `MainWindow` holds a `Gtk::Stack` that switches between 5 screens in response to `signal_app_state_changed`. CSS is embedded as a string in `mainwindow.cpp`.
+Window is ~720×400. `KalahViewModel` is a `@MainActor @Observable` class that owns the bridge handle and drives all state. Views read from it and call its methods.
 
 | File | Purpose |
 | ---- | ------- |
-| `ui/mainwindow.h/cpp` | `Gtk::ApplicationWindow` + `Gtk::Stack`; owns `GameController` and all 5 screen objects; routes state changes |
-| `ui/welcomescreen.h/cpp` | Title + subtitle + "Click anywhere"; `Gtk::GestureClick` → `game.proceedFromWelcome()` |
-| `ui/namescreen.h/cpp` | `Gtk::Entry` (max 24) + Continue button; calls `game.submitName()` |
-| `ui/genderscreen.h/cpp` | Three `Gtk::Button` (Male/Female/Prefer not to say); calls `game.selectGender()` |
-| `ui/difficultyscreen.h/cpp` | Four `Gtk::Button` (Юноша/Кандидат/Участник/Эфенди) with subtitles; calls `game.selectLevel()` |
-| `ui/gamescreen.h/cpp` | Score bar + status label + board row + New Game button |
-| `ui/pitwidget.h/cpp` | `Gtk::DrawingArea` 90×90; Cairo circle; highlights when playable; emits `signal_tapped` |
-| `ui/storewidget.h/cpp` | `Gtk::DrawingArea` 80×220; Cairo pill shape; display-only kalah |
+| `ui/KalahApp.swift` | `@main` SwiftUI `App`; creates `KalahViewModel` and injects it as an environment object |
+| `ui/KalahViewModel.swift` | `@Observable` state; calls C bridge; schedules AI moves with `Task.sleep(700 ms)` |
+| `ui/ContentView.swift` | Root view; switches on `vm.appState` with slide transition |
+| `ui/WelcomeView.swift` | Title + subtitle + "Tap anywhere to begin"; full-screen tap gesture |
+| `ui/NameView.swift` | `TextField` (max 24 chars) + Continue button |
+| `ui/GenderView.swift` | Three buttons: Male / Female / Prefer not to say |
+| `ui/DifficultyView.swift` | Four buttons: Юноша / Кандидат / Участник / Эфенди |
+| `ui/GameView.swift` | Score bar + status label + board grid + New Game button |
+| `ui/PitView.swift` | 80×80 circle; highlights when playable; tap calls `vm.sow(index)` |
+| `ui/StoreView.swift` | 80×200 pill; display-only kalah score |
+| `ui/Styles.swift` | `Color(hex:)` extension, `GoldButtonStyle`, `ChoiceButtonStyle`, shared colour constants |
 
-**Data flow:** gtkmm click → `game.sow(index)` → C++ updates `KalahGame` → emits `signal_board_changed` → `GameScreen::refresh_board()` reads `game.pits()` and redraws widgets. AI move follows the same path after the GLib timer fires.
+**Data flow:** SwiftUI tap → `vm.sow(index)` → `kalah_sow()` updates `KalahGame` → `syncBoard()` reads `kalah_get_pits()` → `@Observable` triggers view refresh. After a SWITCH_TURN result, `KalahViewModel` waits 700 ms then calls `kalah_select_ai_move()` / `kalah_do_ai_move()` and syncs again.
+
+Player mapping: `currentPlayer == 0` → USER (bottom row), `currentPlayer == 1` → JINN (top row).
 
 ## Implementation Reference
 

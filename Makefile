@@ -1,42 +1,38 @@
 #
 # make
-# make all      -- build everything
+# make all      -- build the app (debug)
 #
-# make test     -- run unit tests
+# make release  -- build optimised binary
 #
-# make install  -- install binaries to /usr/local
+# make run      -- build and launch the app
 #
-# make clean    -- remove build files
+# make test     -- run C++ unit tests via CMake/ctest
 #
-.PHONY: all install clean test debug bundle
+# make install  -- install binary to /usr/local/bin
+#
+# make clean    -- remove Swift and CMake build artefacts
+#
+.PHONY: all release run test install clean
 
-all:    build
-	$(MAKE) -Cbuild $@
+all:
+	swift build
 
-test:   build
-	$(MAKE) -Cbuild unit_tests controller_tests
-	ctest --test-dir build --output-on-failure
+release:
+	swift build -c release
 
-install: build
-	$(MAKE) -Cbuild $@
+run:
+	swift run Kalah
+
+test: cmake-build
+	$(MAKE) -Ccmake-build unit_tests
+	ctest --test-dir cmake-build --output-on-failure
+
+install: release
+	install -m 755 .build/release/Kalah /usr/local/bin/Kalah
 
 clean:
-	rm -rf build
+	rm -rf .build cmake-build
 
-build:
+cmake-build:
 	mkdir $@
 	cmake -B$@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
-
-debug:
-	mkdir build
-	cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug
-
-bundle: all
-	rm -rf Kalah.app
-	mkdir -p Kalah.app/Contents/MacOS Kalah.app/Contents/libs
-	cp macos/Info.plist Kalah.app/Contents/Info.plist
-	cp build/kalah Kalah.app/Contents/MacOS/kalah
-	dylibbundler -od -b \
-	    -x Kalah.app/Contents/MacOS/kalah \
-	    -d Kalah.app/Contents/libs/ \
-	    -p @executable_path/../libs/

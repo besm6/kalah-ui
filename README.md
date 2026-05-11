@@ -2,8 +2,6 @@
 
 Kalah is an ancient two-player strategy board game from the Mancala family. You play against a computer opponent (the Jinn) who uses a minimax algorithm to choose its moves.
 
-![screenshot](doc/kalah-gnome.png)
-
 ## How to Play
 
 The board has two rows of six pits and a large scoring pit (kalah) on each end. Each pit starts with six stones.
@@ -34,36 +32,43 @@ When you launch the game you will be walked through four short screens:
 
 After setup the game starts immediately. Click **New Game** at any time to play again without repeating the setup.
 
+## Requirements
+
+- macOS 14 (Sonoma) or later
+- Swift 5.10 or later (included with Xcode 15.3+)
+
 ## Building from Source
-
-### Ubuntu / Debian
-
-```bash
-sudo apt install libgtkmm-4.0-dev cmake pkg-config
-```
-
-### macOS (Homebrew)
-
-```bash
-brew install gtkmm4 cmake pkgconf
-```
-
-### Build
 
 ```bash
 git clone <repo-url>
 cd kalah-ui
 make
-build/kalah
+```
+
+Or use Swift Package Manager directly:
+
+```bash
+swift build          # debug build
+swift build -c release   # optimised build
+swift run Kalah      # build and launch
 ```
 
 Other make targets:
 
 ```bash
-make debug    # build with debug symbols
-make test     # build and run unit and integration tests
-make bundle   # create Kalah.app with bundled dylibs (macOS, requires dylibbundler)
-make clean    # remove build directory
+make release   # optimised build (.build/release/Kalah)
+make run       # build and launch the app
+make install   # install to /usr/local/bin
+make test      # build and run C++ engine unit tests (requires CMake)
+make clean     # remove .build/ and cmake-build/
+```
+
+## Project Structure
+
+```text
+src/         C++17 game engine (kalah.h, kalah.cpp) and C bridge for Swift
+ui/          SwiftUI front-end (views, view model)
+test/        C++ unit tests for the game engine
 ```
 
 ## Implementation Details
