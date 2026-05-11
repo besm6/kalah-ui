@@ -67,6 +67,19 @@ public:
 
     void collectRemaining() { game.getPosition().collectRemaining(); }
 
+    // Test helpers — allow direct board configuration (mirrors setBoard in kalah_test.cpp)
+    // player: 0=JINN, 1=USER  |  index: 0-5 regular pits, 6=kalah
+    void setPit(int player, int index, int stones) {
+        game.getPosition().sides[static_cast<size_t>(player)].pits[static_cast<size_t>(index)] = stones;
+    }
+    void setKalah(int player, int stones) {
+        game.getPosition().sides[static_cast<size_t>(player)].pits[KALAH_INDEX] = stones;
+    }
+    // player: 0=JINN (Player::JINN), 1=USER (Player::USER)
+    void setCurrentPlayer(int player) {
+        game.getPosition().currentPlayer = static_cast<Player>(player);
+    }
+
     // Returns 0=user wins, 1=jinn wins, -1=tie
     int winner() const {
         const Position &pos = game.getPosition();

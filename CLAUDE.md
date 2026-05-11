@@ -11,10 +11,9 @@ The project is built with Swift Package Manager. A `Makefile` wraps the common c
 | `make` / `make all` | `swift build` (debug) |
 | `make release` | `swift build -c release` |
 | `make run` | `swift run Kalah` — build and launch the app |
-| `make test` | Build and run C++ engine unit tests via CMake/ctest |
-| `swift test` | Build and run Swift UI unit tests (KalahTests) |
+| `make test` / `swift test` | Build and run Swift unit tests (KalahTests) |
 | `make install` | Copy release binary to `/usr/local/bin/Kalah` |
-| `make clean` | Delete `.build/` and `cmake-build/` |
+| `make clean` | Delete `.build/` and `Kalah.app/` |
 
 The debug binary is written to `.build/debug/Kalah`. Requires macOS 14+ and Swift 5.10+.
 
@@ -81,12 +80,13 @@ Player mapping: `currentPlayer == 0` → USER (bottom row), `currentPlayer == 1`
 
 ### Swift unit tests (`tests/`)
 
-`KalahTests` target exercises `KalahViewModel` in isolation using a `MockKalahEngine` that implements `KalahProtocol`. The mock records call counts and lets each test configure return values.
+The `KalahTests` target contains two test suites. Run all with `swift test`.
 
-- `tests/KalahViewModelTests.swift` — 15 test cases covering state machine transitions, board sync, extra-turn logic, AI scheduling, game-over handling, and new-game reset
+**`KalahSwiftTests.swift`** — 49 tests that exercise `KalahSwift` (the C++ wrapper) directly via Swift/C++ interop. Covers initialisation, sowing mechanics, extra-turn rule, capture rule, invalid moves, game-over detection, `collectRemaining`, stone-count invariant, AI move selection, user-name setting, and the app state machine (Welcome → Playing). Uses `setPit`/`setKalah`/`setCurrentPlayer` helpers on `KalahSwift` to configure board state.
+
+**`KalahViewModelTests.swift`** — 15 tests that exercise `KalahViewModel` in isolation via `MockKalahEngine`. The mock records call counts and lets each test configure return values. The `aiDelay` parameter on `KalahViewModel.init(engine:aiDelay:)` is set to `.zero` so async AI-turn cases complete in milliseconds.
+
 - `tests/MockKalahEngine.swift` — configurable mock with per-call result queues
-
-Run with `swift test`. The `aiDelay` parameter on `KalahViewModel.init(engine:aiDelay:)` is set to `.zero` in tests so async AI-turn cases complete in milliseconds.
 
 ## Implementation Reference
 

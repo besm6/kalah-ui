@@ -8,7 +8,7 @@
 #
 # make bundle   -- create Kalah.app bundle
 #
-# make test     -- run C++ unit tests via CMake/ctest
+# make test     -- run unit tests
 #
 # make install  -- install binary to /usr/local/bin
 #
@@ -28,23 +28,17 @@ release:
 run:
 	swift run Kalah
 
-test: cmake-build
-	$(MAKE) -Ccmake-build unit_tests
-	ctest --test-dir cmake-build --output-on-failure
+test:
 	swift test
 
 bundle: release
 	rm -rf $(APP)
 	mkdir -p $(BUNDLE)/MacOS $(BUNDLE)/Resources
-	cp macos/Info.plist $(BUNDLE)/Info.plist
+	cp app/Info.plist $(BUNDLE)/Info.plist
 	cp .build/release/Kalah $(BUNDLE)/MacOS/kalah
 
-install: release
-	install -m 755 .build/release/Kalah /usr/local/bin/Kalah
+install: bundle
+	cp -a $(APP) $$HOME/Applications/
 
 clean:
-	rm -rf .build cmake-build $(APP)
-
-cmake-build:
-	mkdir $@
-	cmake -B$@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+	rm -rf .build $(APP)

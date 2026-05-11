@@ -8,20 +8,19 @@ let package = Package(
         .target(
             name: "KalahEngine",
             path: "src",
-            exclude: ["Kalah.md"],
             publicHeadersPath: "."
         ),
         .target(
             name: "KalahCore",
             dependencies: ["KalahEngine"],
             path: "ui",
-            exclude: ["KalahApp.swift"],
             swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
         .executableTarget(
             name: "Kalah",
             dependencies: ["KalahCore"],
             path: "app",
+            exclude: ["Info.plist"],
             swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
         .testTarget(
